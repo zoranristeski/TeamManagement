@@ -1,0 +1,19 @@
+import { useMemo, useState, type ReactNode } from 'react'
+import { AuthContext, type AuthContextValue } from './auth-context'
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [token, setToken] = useState(() => localStorage.getItem('sports_access_token'))
+  const value = useMemo<AuthContextValue>(() => ({
+    token,
+    login: (nextToken: string) => {
+      localStorage.setItem('sports_access_token', nextToken)
+      setToken(nextToken)
+    },
+    logout: () => {
+      localStorage.removeItem('sports_access_token')
+      localStorage.removeItem('sports_active_club')
+      setToken(null)
+    },
+  }), [token])
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
