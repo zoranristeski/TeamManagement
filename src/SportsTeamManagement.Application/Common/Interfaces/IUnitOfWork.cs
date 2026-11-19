@@ -12,6 +12,10 @@ namespace SportsTeamManagement.Application.Common.Interfaces
         IRepository<Domain.Entities.EventRegistration> EventRegistrations { get; }
         IRepository<Domain.Entities.Club> Clubs { get; }
         IRepository<Domain.Entities.ClubMembership> ClubMemberships { get; }
+        IRepository<Domain.Entities.TrainingGroup> TrainingGroups { get; }
+        IRepository<Domain.Entities.Guardian> Guardians { get; }
+        IRepository<Domain.Entities.MembershipPlan> MembershipPlans { get; }
+        IRepository<Domain.Entities.Membership> Memberships { get; }
 
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
         Task BeginTransactionAsync(CancellationToken cancellationToken = default);

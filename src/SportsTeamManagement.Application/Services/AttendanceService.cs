@@ -132,6 +132,52 @@ namespace SportsTeamManagement.Application.Services
             return Result.Success<IEnumerable<AttendanceStatsDto>>(statsList);
         }
 
+        public async Task<Result<IEnumerable<AttendanceDto>>> BulkMarkAttendanceAsync(BulkAttendanceDto dto, CancellationToken cancellationToken = default)
+        {
+            var session = await _unitOfWork.TrainingSessions.GetByIdAsync(dto.TrainingSessionId, cancellationToken);
+            if (session is null)
+                return Result.Failure<IEnumerable<AttendanceDto>>("Training session not found");
+            if (dto.Students.Count == 0)
+                return Result.Failure<IEnumerable<AttendanceDto>>("At least one student is required");
+
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                var created = new List<Attendance>();
+                foreach (var item in dto.Students)
+                {
+                    var student = await _unitOfWork.Students.GetByIdAsync(item.StudentId, cancellationToken);
+                    if (student is null)
+                        throw new InvalidOperationException($"Student {item.StudentId} not found");
+
+                    var existing = await _unitOfWork.Attendances.GetAttendanceByStudentAndSessionAsync(
+                        item.StudentId, dto.TrainingSessionId, cancellationToken);
+                    if (existing is not null)
+                        continue;
+
+                    created.Add(new Attendance
+                    {
+                        StudentId = item.StudentId,
+                        TrainingSessionId = dto.TrainingSessionId,
+                        AttendanceDate = dto.AttendanceDate,
+                        IsPresent = item.IsPresent,
+                        Notes = item.Notes
+                    });
+                }
+
+                await _unitOfWork.Attendances.AddRangeAsync(created, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+                return Result.Success(_mapper.Map<IEnumerable<AttendanceDto>>(created));
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+        }
+
         private static int CalculateCurrentStreak(List<Attendance> attendances)
         {
             var orderedAttendances = attendances.OrderByDescending(a => a.AttendanceDate).ToList();

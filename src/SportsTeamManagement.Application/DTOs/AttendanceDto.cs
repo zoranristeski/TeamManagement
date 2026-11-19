@@ -27,6 +27,20 @@ namespace SportsTeamManagement.Application.DTOs
         public string? Notes { get; set; }
     }
 
+    public class BulkAttendanceItemDto
+    {
+        public Guid StudentId { get; set; }
+        public bool IsPresent { get; set; } = true;
+        public string? Notes { get; set; }
+    }
+
+    public class BulkAttendanceDto
+    {
+        public Guid TrainingSessionId { get; set; }
+        public DateTime AttendanceDate { get; set; }
+        public List<BulkAttendanceItemDto> Students { get; set; } = new();
+    }
+
     public class AttendanceStatsDto
     {
         public Guid StudentId { get; set; }

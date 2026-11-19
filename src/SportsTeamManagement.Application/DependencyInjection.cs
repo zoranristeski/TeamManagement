@@ -18,6 +18,7 @@ namespace SportsTeamManagement.Application
             services.AddScoped<IAttendanceService, AttendanceService>();
             services.AddScoped<ITrainingSessionService, TrainingSessionService>();
             services.AddScoped<IClubService, ClubService>();
+            services.AddScoped<ITrainingGroupService, TrainingGroupService>();
 
             return services;
         }

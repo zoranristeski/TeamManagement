@@ -23,6 +23,10 @@ namespace SportsTeamManagement.Infrastructure.Repositories
             EventRegistrations = new Repository<EventRegistration>(_context);
             Clubs = new Repository<Club>(_context);
             ClubMemberships = new Repository<ClubMembership>(_context);
+            TrainingGroups = new Repository<TrainingGroup>(_context);
+            Guardians = new Repository<Guardian>(_context);
+            MembershipPlans = new Repository<MembershipPlan>(_context);
+            Memberships = new Repository<Membership>(_context);
         }
 
         public IUserRepository Users { get; }
@@ -35,6 +39,10 @@ namespace SportsTeamManagement.Infrastructure.Repositories
         public IRepository<EventRegistration> EventRegistrations { get; }
         public IRepository<Club> Clubs { get; }
         public IRepository<ClubMembership> ClubMemberships { get; }
+        public IRepository<TrainingGroup> TrainingGroups { get; }
+        public IRepository<Guardian> Guardians { get; }
+        public IRepository<MembershipPlan> MembershipPlans { get; }
+        public IRepository<Membership> Memberships { get; }
 
         public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {

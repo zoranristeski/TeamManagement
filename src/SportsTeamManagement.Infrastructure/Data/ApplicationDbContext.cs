@@ -20,6 +20,14 @@ namespace SportsTeamManagement.Infrastructure.Data
         public DbSet<EventRegistration> EventRegistrations { get; set; }
         public DbSet<Club> Clubs { get; set; }
         public DbSet<ClubMembership> ClubMemberships { get; set; }
+        public DbSet<TrainingGroup> TrainingGroups { get; set; }
+        public DbSet<TrainingGroupStudent> TrainingGroupStudents { get; set; }
+        public DbSet<TrainingGroupTrainer> TrainingGroupTrainers { get; set; }
+        public DbSet<Guardian> Guardians { get; set; }
+        public DbSet<GuardianStudent> GuardianStudents { get; set; }
+        public DbSet<MembershipPlan> MembershipPlans { get; set; }
+        public DbSet<Membership> Memberships { get; set; }
+        public DbSet<PaymentRecord> PaymentRecords { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

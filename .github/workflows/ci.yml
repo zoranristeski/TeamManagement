@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [feature/sports-team-management-platform]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dotnet:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore
+        run: dotnet restore src/SportsTeamManagement.API.Tests/SportsTeamManagement.API.Tests.csproj
+      - name: Build backend
+        run: dotnet build src/SportsTeamManagement.API/SportsTeamManagement.API.csproj --no-restore
+      - name: Test API
+        run: dotnet test src/SportsTeamManagement.API.Tests/SportsTeamManagement.API.Tests.csproj --no-restore
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/SportsTeamManagement.Web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/SportsTeamManagement.Web/package-lock.json
+      - name: Install npm 10
+        run: npm install --global npm@10.9.3
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build

@@ -12,6 +12,8 @@ namespace SportsTeamManagement.Application.Common.Mappings
             CreateMap<CreateClubDto, Club>();
             CreateMap<UpdateClubDto, Club>()
                 .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+            CreateMap<TrainingGroup, TrainingGroupDto>();
+            CreateMap<CreateTrainingGroupDto, TrainingGroup>();
 
             // User mappings
             CreateMap<User, UserDto>()
