@@ -21,7 +21,7 @@ jobs:
       - name: Build backend
         run: dotnet build src/SportsTeamManagement.API/SportsTeamManagement.API.csproj --no-restore
       - name: Test API
-        run: dotnet test src/SportsTeamManagement.API.Tests/SportsTeamManagement.API.Tests.csproj --no-build
+        run: dotnet test src/SportsTeamManagement.API.Tests/SportsTeamManagement.API.Tests.csproj --no-restore
 
   web:
     runs-on: ubuntu-latest
@@ -35,6 +35,8 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: src/SportsTeamManagement.Web/package-lock.json
+      - name: Install npm 10
+        run: npm install --global npm@10.9.3
       - run: npm ci
       - run: npm run lint
       - run: npm run build
