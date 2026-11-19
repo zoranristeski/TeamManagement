@@ -12,5 +12,6 @@ namespace SportsTeamManagement.Application.Services.Interfaces
         Task<Result<IEnumerable<AttendanceDto>>> GetAttendancesByDateRangeAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default);
         Task<Result<AttendanceStatsDto>> GetAttendanceStatsAsync(Guid studentId, DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default);
         Task<Result<IEnumerable<AttendanceStatsDto>>> GetAllStudentsAttendanceStatsAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default);
+        Task<Result<IEnumerable<AttendanceDto>>> BulkMarkAttendanceAsync(BulkAttendanceDto dto, CancellationToken cancellationToken = default);
     }
 }

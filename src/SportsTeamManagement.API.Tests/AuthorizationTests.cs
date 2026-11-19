@@ -61,6 +61,17 @@ public sealed class AuthorizationTests : IClassFixture<TestWebApplicationFactory
     }
 
     [Fact]
+    public async Task StudentRoleCannotManageTrainingGroups()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/traininggroups?clubId=00000000-0000-0000-0000-000000000001");
+        request.Headers.Add(TestAuthenticationHandler.RoleHeader, "Student");
+
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task CorsAllowsOnlyConfiguredOrigins()
     {
         using var allowedRequest = CreatePreflightRequest("https://frontend.example");

@@ -61,5 +61,12 @@ namespace SportsTeamManagement.API.Controllers
             var result = await _attendanceService.GetAllStudentsAttendanceStatsAsync(startDate, endDate, cancellationToken);
             return HandleResult(result);
         }
+
+        [HttpPost("bulk")]
+        public async Task<IActionResult> BulkMarkAttendance([FromBody] BulkAttendanceDto dto, CancellationToken cancellationToken)
+        {
+            var result = await _attendanceService.BulkMarkAttendanceAsync(dto, cancellationToken);
+            return HandleResult(result);
+        }
     }
 }
