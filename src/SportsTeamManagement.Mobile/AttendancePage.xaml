@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SportsTeamManagement.Mobile.AttendancePage"
+             Title="Attendance">
+    <ScrollView>
+        <VerticalStackLayout Padding="24" Spacing="14">
+            <Label Text="Mark attendance" FontSize="28" FontAttributes="Bold" />
+            <Label Text="{Binding StatusMessage}" TextColor="{AppThemeBinding Light=#68758A, Dark=#BCC6D7}" />
+            <Border Padding="16" StrokeShape="RoundRectangle 12">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Training session GUID" FontAttributes="Bold" />
+                    <Entry Text="{Binding TrainingSessionId}" Placeholder="00000000-0000-0000-0000-000000000000" />
+                    <Label Text="Student GUID" FontAttributes="Bold" />
+                    <Entry Text="{Binding StudentId}" Placeholder="00000000-0000-0000-0000-000000000000" />
+                    <Label Text="Attendance date" FontAttributes="Bold" />
+                    <DatePicker Date="{Binding AttendanceDate}" />
+                    <HorizontalStackLayout Spacing="10">
+                        <CheckBox IsChecked="{Binding IsPresent}" />
+                        <Label Text="Present" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                    <Button Text="Save attendance" Command="{Binding SaveCommand}" />
+                    <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
