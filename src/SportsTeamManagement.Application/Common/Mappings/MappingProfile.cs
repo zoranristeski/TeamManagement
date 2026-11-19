@@ -8,6 +8,11 @@ namespace SportsTeamManagement.Application.Common.Mappings
     {
         public MappingProfile()
         {
+            CreateMap<Club, ClubDto>();
+            CreateMap<CreateClubDto, Club>();
+            CreateMap<UpdateClubDto, Club>()
+                .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+
             // User mappings
             CreateMap<User, UserDto>()
                 .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => $"{src.FirstName} {src.LastName}"));

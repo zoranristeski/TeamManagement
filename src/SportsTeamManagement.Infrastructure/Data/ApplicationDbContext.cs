@@ -18,6 +18,8 @@ namespace SportsTeamManagement.Infrastructure.Data
         public DbSet<BeltPromotion> BeltPromotions { get; set; }
         public DbSet<Event> Events { get; set; }
         public DbSet<EventRegistration> EventRegistrations { get; set; }
+        public DbSet<Club> Clubs { get; set; }
+        public DbSet<ClubMembership> ClubMemberships { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

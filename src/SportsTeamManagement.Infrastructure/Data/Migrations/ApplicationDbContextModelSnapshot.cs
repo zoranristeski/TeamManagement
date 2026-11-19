@@ -122,6 +122,110 @@ namespace SportsTeamManagement.Infrastructure.Data.Migrations
                     b.ToTable("BeltPromotions");
                 });
 
+            modelBuilder.Entity("SportsTeamManagement.Domain.Entities.Club", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("BeltGradingEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("LogoUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("TimeZone")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("WebsiteUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.ToTable("Clubs");
+                });
+
+            modelBuilder.Entity("SportsTeamManagement.Domain.Entities.ClubMembership", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ClubId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("ClubRole")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ClubId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("ClubMemberships");
+                });
+
             modelBuilder.Entity("SportsTeamManagement.Domain.Entities.Event", b =>
                 {
                     b.Property<Guid>("Id")
@@ -510,6 +614,25 @@ namespace SportsTeamManagement.Infrastructure.Data.Migrations
                     b.Navigation("Student");
                 });
 
+            modelBuilder.Entity("SportsTeamManagement.Domain.Entities.ClubMembership", b =>
+                {
+                    b.HasOne("SportsTeamManagement.Domain.Entities.Club", "Club")
+                        .WithMany("Memberships")
+                        .HasForeignKey("ClubId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SportsTeamManagement.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Club");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("SportsTeamManagement.Domain.Entities.Event", b =>
                 {
                     b.HasOne("SportsTeamManagement.Domain.Entities.Trainer", "Organizer")
@@ -571,6 +694,11 @@ namespace SportsTeamManagement.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Trainer");
+                });
+
+            modelBuilder.Entity("SportsTeamManagement.Domain.Entities.Club", b =>
+                {
+                    b.Navigation("Memberships");
                 });
 
             modelBuilder.Entity("SportsTeamManagement.Domain.Entities.Event", b =>
