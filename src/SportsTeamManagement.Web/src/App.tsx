@@ -7,6 +7,7 @@ import { StudentsPage } from './pages/StudentsPage'
 import { GroupsPage } from './pages/GroupsPage'
 import { AttendancePage } from './pages/AttendancePage'
 import { ClubsPage } from './pages/ClubsPage'
+import { AuthCallbackPage } from './pages/AuthCallbackPage'
 
 export default function App() {
   const { token } = useAuth()
@@ -14,6 +15,7 @@ export default function App() {
     return (
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/auth/callback/:provider" element={<AuthCallbackPage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     )
