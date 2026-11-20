@@ -10,8 +10,10 @@
 
             <Border Padding="16" StrokeShape="RoundRectangle 12">
                 <VerticalStackLayout Spacing="10">
-                    <Label Text="Access token" FontAttributes="Bold" />
-                    <Entry Text="{Binding AccessToken}" IsPassword="True" Placeholder="Paste issued bearer token" />
+                    <Label Text="Email" FontAttributes="Bold" />
+                    <Entry Text="{Binding Email}" Keyboard="Email" Placeholder="you@example.com" />
+                    <Label Text="Password" FontAttributes="Bold" />
+                    <Entry Text="{Binding Password}" IsPassword="True" Placeholder="Password" />
                     <HorizontalStackLayout Spacing="10">
                         <Button Text="Sign in" Command="{Binding SignInCommand}" HorizontalOptions="Fill" />
                         <Button Text="Sign out" Command="{Binding SignOutCommand}" />

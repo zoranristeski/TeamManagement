@@ -10,8 +10,9 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly ApiClient _api;
 
     [ObservableProperty] private bool isBusy;
-    [ObservableProperty] private string accessToken = string.Empty;
-    [ObservableProperty] private string statusMessage = "Sign in with an issued access token.";
+    [ObservableProperty] private string email = string.Empty;
+    [ObservableProperty] private string password = string.Empty;
+    [ObservableProperty] private string statusMessage = "Sign in with your TeamHub account.";
     [ObservableProperty] private int activeClubCount;
     [ObservableProperty] private double averageAttendance;
 
@@ -23,9 +24,17 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task SignInAsync()
     {
-        if (string.IsNullOrWhiteSpace(AccessToken)) return;
-        await _api.SaveTokenAsync(AccessToken);
-        await RefreshAsync();
+        if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password)) return;
+        try
+        {
+            await _api.LoginAsync(Email, Password);
+            StatusMessage = "Signed in.";
+            await RefreshAsync();
+        }
+        catch (Exception)
+        {
+            StatusMessage = "Sign in failed.";
+        }
     }
 
     [RelayCommand]
@@ -59,7 +68,8 @@ public sealed partial class MainViewModel : ObservableObject
         await _api.SignOutAsync();
         ActiveClubCount = 0;
         AverageAttendance = 0;
-        AccessToken = string.Empty;
+        Email = string.Empty;
+        Password = string.Empty;
         StatusMessage = "Signed out.";
     }
 }
