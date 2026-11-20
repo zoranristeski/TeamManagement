@@ -22,6 +22,10 @@ namespace SportsTeamManagement.Infrastructure
             services.AddScoped<IStudentRepository, StudentRepository>();
             services.AddScoped<IAttendanceRepository, AttendanceRepository>();
             services.AddScoped<IAuthenticationService, AuthenticationService>();
+            services.AddHttpClient("AuthenticationProviders", client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(15);
+            });
 
             return services;
         }

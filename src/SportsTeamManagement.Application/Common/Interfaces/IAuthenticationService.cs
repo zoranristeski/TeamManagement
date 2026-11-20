@@ -10,4 +10,8 @@ public interface IAuthenticationService
     Task<Result<AuthResponseDto>> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default);
     Task<Result> LogoutAsync(string refreshToken, CancellationToken cancellationToken = default);
     Task<Result<UserDto>> GetMeAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<Result<AuthResponseDto>> ExternalLoginAsync(string provider, ExternalLoginRequestDto request, CancellationToken cancellationToken = default);
+    Task<Result> LinkProviderAsync(Guid userId, string provider, ExternalLoginRequestDto request, CancellationToken cancellationToken = default);
+    Task<Result> UnlinkProviderAsync(Guid userId, string provider, CancellationToken cancellationToken = default);
+    Task<Result<List<string>>> GetProvidersAsync(Guid userId, CancellationToken cancellationToken = default);
 }

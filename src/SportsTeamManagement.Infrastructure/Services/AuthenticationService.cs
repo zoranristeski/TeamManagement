@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -18,11 +19,13 @@ public sealed class AuthenticationService : IAuthenticationService
 {
     private readonly ApplicationDbContext _db;
     private readonly IConfiguration _configuration;
+    private readonly HttpClient _httpClient;
 
-    public AuthenticationService(ApplicationDbContext db, IConfiguration configuration)
+    public AuthenticationService(ApplicationDbContext db, IConfiguration configuration, IHttpClientFactory httpClientFactory)
     {
         _db = db;
         _configuration = configuration;
+        _httpClient = httpClientFactory.CreateClient("AuthenticationProviders");
     }
 
     public async Task<Result<AuthResponseDto>> RegisterAsync(RegisterRequestDto request, CancellationToken cancellationToken = default)
@@ -132,6 +135,192 @@ public sealed class AuthenticationService : IAuthenticationService
         return user is null ? Result.Failure<UserDto>("User not found.") : Result.Success(ToDto(user));
     }
 
+    public async Task<Result<List<string>>> GetProvidersAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var providers = await _db.ExternalLogins
+            .Where(x => x.UserId == userId)
+            .Select(x => x.Provider)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        return Result.Success(providers);
+    }
+
+    public async Task<Result<AuthResponseDto>> ExternalLoginAsync(string provider, ExternalLoginRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var profile = await ValidateProviderAsync(provider, request, cancellationToken);
+        if (profile is null)
+            return Result.Failure<AuthResponseDto>("The external login could not be verified.");
+
+        var existing = await _db.ExternalLogins.Include(x => x.User)
+            .SingleOrDefaultAsync(x => x.Provider == profile.Provider && x.ProviderUserId == profile.ProviderUserId, cancellationToken);
+        if (existing is not null)
+        {
+            existing.Email = profile.Email;
+            existing.EmailVerified = profile.EmailVerified;
+            existing.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(cancellationToken);
+            return await IssueAsync(existing.User, cancellationToken);
+        }
+
+        var email = profile.EmailVerified ? profile.Email : null;
+        var normalizedEmail = email is null ? null : email.Trim().ToUpperInvariant();
+        if (!await _db.Users.AnyAsync(x => x.NormalizedEmail == normalizedEmail, cancellationToken) && normalizedEmail is not null)
+        {
+            // Matching email is accepted only for an explicit linking operation; external-first
+            // registration always creates a new identity and requires authenticated linking later.
+        }
+
+        var localEmail = normalizedEmail is null
+            ? $"{profile.Provider.ToLowerInvariant()}-{profile.ProviderUserId}@external.invalid"
+            : normalizedEmail;
+        if (await _db.Users.AnyAsync(x => x.NormalizedEmail == localEmail, cancellationToken))
+            localEmail = $"{profile.Provider.ToLowerInvariant()}-{Guid.NewGuid():N}@external.invalid";
+
+        var user = new User
+        {
+            Auth0Id = $"{profile.Provider}:{profile.ProviderUserId}",
+            Email = localEmail,
+            NormalizedEmail = localEmail,
+            FirstName = profile.FirstName,
+            LastName = profile.LastName,
+            EmailVerified = profile.EmailVerified,
+            Role = UserRole.Student,
+            IsActive = true
+        };
+        _db.Users.Add(user);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        _db.ExternalLogins.Add(new ExternalLogin
+        {
+            UserId = user.Id,
+            Provider = profile.Provider,
+            ProviderUserId = profile.ProviderUserId,
+            Email = profile.Email,
+            EmailVerified = profile.EmailVerified
+        });
+        await _db.SaveChangesAsync(cancellationToken);
+        return await IssueAsync(user, cancellationToken);
+    }
+
+    public async Task<Result> LinkProviderAsync(Guid userId, string provider, ExternalLoginRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var profile = await ValidateProviderAsync(provider, request, cancellationToken);
+        if (profile is null)
+            return Result.Failure("The external login could not be verified.");
+        if (await _db.ExternalLogins.AnyAsync(x => x.Provider == profile.Provider && x.ProviderUserId == profile.ProviderUserId, cancellationToken))
+            return Result.Failure("This external login is already associated with an application account.");
+
+        var user = await _db.Users.SingleOrDefaultAsync(x => x.Id == userId, cancellationToken);
+        if (user is null)
+            return Result.Failure("User not found.");
+
+        _db.ExternalLogins.Add(new ExternalLogin
+        {
+            UserId = userId,
+            Provider = profile.Provider,
+            ProviderUserId = profile.ProviderUserId,
+            Email = profile.Email,
+            EmailVerified = profile.EmailVerified
+        });
+        await _db.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
+    public async Task<Result> UnlinkProviderAsync(Guid userId, string provider, CancellationToken cancellationToken = default)
+    {
+        var user = await _db.Users.SingleOrDefaultAsync(x => x.Id == userId, cancellationToken);
+        if (user is null)
+            return Result.Failure("User not found.");
+
+        var login = await _db.ExternalLogins.SingleOrDefaultAsync(x => x.UserId == userId && x.Provider == provider, cancellationToken);
+        if (login is null)
+            return Result.Failure("The provider is not connected.");
+
+        var providerCount = await _db.ExternalLogins.CountAsync(x => x.UserId == userId, cancellationToken);
+        if (string.IsNullOrWhiteSpace(user.PasswordHash) && providerCount <= 1)
+            return Result.Failure("At least one authentication method must remain.");
+
+        _db.ExternalLogins.Remove(login);
+        await _db.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
+    private async Task<ProviderProfile?> ValidateProviderAsync(string provider, ExternalLoginRequestDto request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Code) || string.IsNullOrWhiteSpace(request.RedirectUri))
+            return null;
+
+        if (provider.Equals("google", StringComparison.OrdinalIgnoreCase))
+            return await ValidateGoogleAsync(request, cancellationToken);
+        if (provider.Equals("facebook", StringComparison.OrdinalIgnoreCase))
+            return await ValidateFacebookAsync(request, cancellationToken);
+        return null;
+    }
+
+    private async Task<ProviderProfile?> ValidateGoogleAsync(ExternalLoginRequestDto request, CancellationToken cancellationToken)
+    {
+        var clientId = _configuration["Authentication:Google:ClientId"];
+        var clientSecret = _configuration["Authentication:Google:ClientSecret"];
+        if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret))
+            return null;
+
+        using var content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["code"] = request.Code,
+            ["client_id"] = clientId,
+            ["client_secret"] = clientSecret,
+            ["redirect_uri"] = request.RedirectUri,
+            ["grant_type"] = "authorization_code"
+        });
+        using var tokenResponse = await _httpClient.PostAsync("https://oauth2.googleapis.com/token", content, cancellationToken);
+        if (!tokenResponse.IsSuccessStatusCode)
+            return null;
+        var token = await tokenResponse.Content.ReadFromJsonAsync<GoogleTokenResponse>(cancellationToken: cancellationToken);
+        if (string.IsNullOrWhiteSpace(token?.id_token))
+            return null;
+
+        using var verifyResponse = await _httpClient.GetAsync($"https://oauth2.googleapis.com/tokeninfo?id_token={Uri.EscapeDataString(token.id_token)}", cancellationToken);
+        if (!verifyResponse.IsSuccessStatusCode)
+            return null;
+        var profile = await verifyResponse.Content.ReadFromJsonAsync<GoogleProfileResponse>(cancellationToken: cancellationToken);
+        if (profile is null || profile.sub is null || !string.Equals(profile.aud, clientId, StringComparison.Ordinal))
+            return null;
+
+        return new ProviderProfile("google", profile.sub, profile.email, profile.email_verified, profile.given_name ?? "External", profile.family_name ?? "User");
+    }
+
+    private async Task<ProviderProfile?> ValidateFacebookAsync(ExternalLoginRequestDto request, CancellationToken cancellationToken)
+    {
+        var appId = _configuration["Authentication:Facebook:AppId"];
+        var appSecret = _configuration["Authentication:Facebook:AppSecret"];
+        if (string.IsNullOrWhiteSpace(appId) || string.IsNullOrWhiteSpace(appSecret))
+            return null;
+
+        var tokenQuery = $"code={Uri.EscapeDataString(request.Code)}&client_id={Uri.EscapeDataString(appId)}&client_secret={Uri.EscapeDataString(appSecret)}&redirect_uri={Uri.EscapeDataString(request.RedirectUri)}";
+        using var tokenResponse = await _httpClient.GetAsync($"https://graph.facebook.com/v20.0/oauth/access_token?{tokenQuery}", cancellationToken);
+        if (!tokenResponse.IsSuccessStatusCode)
+            return null;
+        var token = await tokenResponse.Content.ReadFromJsonAsync<FacebookTokenResponse>(cancellationToken: cancellationToken);
+        if (string.IsNullOrWhiteSpace(token?.access_token))
+            return null;
+
+        using var debugResponse = await _httpClient.GetAsync($"https://graph.facebook.com/debug_token?input_token={Uri.EscapeDataString(token.access_token)}&access_token={Uri.EscapeDataString(appId)}|{Uri.EscapeDataString(appSecret)}", cancellationToken);
+        if (!debugResponse.IsSuccessStatusCode)
+            return null;
+        var debug = await debugResponse.Content.ReadFromJsonAsync<FacebookDebugResponse>(cancellationToken: cancellationToken);
+        if (debug?.data is null || !debug.data.is_valid || debug.data.app_id != appId)
+            return null;
+
+        using var profileResponse = await _httpClient.GetAsync($"https://graph.facebook.com/v20.0/me?fields=id,first_name,last_name,email&access_token={Uri.EscapeDataString(token.access_token)}", cancellationToken);
+        if (!profileResponse.IsSuccessStatusCode)
+            return null;
+        var profile = await profileResponse.Content.ReadFromJsonAsync<FacebookProfileResponse>(cancellationToken: cancellationToken);
+        if (profile is null || string.IsNullOrWhiteSpace(profile.id))
+            return null;
+
+        return new ProviderProfile("facebook", profile.id, profile.email, !string.IsNullOrWhiteSpace(profile.email), profile.first_name ?? "External", profile.last_name ?? "User");
+    }
+
     private async Task<Result<AuthResponseDto>> IssueAsync(User user, CancellationToken cancellationToken, Guid? familyId = null)
     {
         var signingKey = _configuration["Authentication:SigningKey"];
@@ -237,4 +426,12 @@ public sealed class AuthenticationService : IAuthenticationService
         FullName = user.FullName,
         CreatedAt = user.CreatedAt
     };
+
+    private sealed record ProviderProfile(string Provider, string ProviderUserId, string? Email, bool EmailVerified, string FirstName, string LastName);
+    private sealed record GoogleTokenResponse(string? id_token);
+    private sealed record GoogleProfileResponse(string? sub, string? email, bool email_verified, string? given_name, string? family_name, string? aud);
+    private sealed record FacebookTokenResponse(string? access_token);
+    private sealed record FacebookDebugResponse(FacebookDebugData? data);
+    private sealed record FacebookDebugData(bool is_valid, string? app_id);
+    private sealed record FacebookProfileResponse(string? id, string? email, string? first_name, string? last_name);
 }

@@ -27,3 +27,9 @@ public sealed class AuthResponseDto
     public DateTime ExpiresAtUtc { get; set; }
     public UserDto User { get; set; } = new();
 }
+
+public sealed class ExternalLoginRequestDto
+{
+    public string Code { get; set; } = string.Empty;
+    public string RedirectUri { get; set; } = string.Empty;
+}

@@ -46,4 +46,44 @@ public sealed class AuthController : BaseApiController
             return Unauthorized();
         return HandleResult(await _authentication.GetMeAsync(userId, cancellationToken));
     }
+
+    [AllowAnonymous]
+    [HttpPost("external/google")]
+    public async Task<IActionResult> Google([FromBody] ExternalLoginRequestDto request, CancellationToken cancellationToken)
+        => HandleResult(await _authentication.ExternalLoginAsync("google", request, cancellationToken));
+
+    [AllowAnonymous]
+    [HttpPost("external/facebook")]
+    public async Task<IActionResult> Facebook([FromBody] ExternalLoginRequestDto request, CancellationToken cancellationToken)
+        => HandleResult(await _authentication.ExternalLoginAsync("facebook", request, cancellationToken));
+
+    [Authorize]
+    [HttpGet("providers")]
+    public async Task<IActionResult> Providers(CancellationToken cancellationToken)
+    {
+        var subject = User.FindFirstValue("sub") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(subject, out var userId)
+            ? HandleResult(await _authentication.GetProvidersAsync(userId, cancellationToken))
+            : Unauthorized();
+    }
+
+    [Authorize]
+    [HttpPost("link-provider/{provider}")]
+    public async Task<IActionResult> LinkProvider(string provider, [FromBody] ExternalLoginRequestDto request, CancellationToken cancellationToken)
+    {
+        var subject = User.FindFirstValue("sub") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(subject, out var userId)
+            ? HandleResult(await _authentication.LinkProviderAsync(userId, provider, request, cancellationToken))
+            : Unauthorized();
+    }
+
+    [Authorize]
+    [HttpDelete("unlink-provider/{provider}")]
+    public async Task<IActionResult> UnlinkProvider(string provider, CancellationToken cancellationToken)
+    {
+        var subject = User.FindFirstValue("sub") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(subject, out var userId)
+            ? HandleResult(await _authentication.UnlinkProviderAsync(userId, provider, cancellationToken))
+            : Unauthorized();
+    }
 }
