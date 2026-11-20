@@ -81,7 +81,7 @@ namespace SportsTeamManagement.API.Controllers
         }
 
         [HttpGet("eligible-for-grading")]
-        [Authorize(Roles = "Admin,ClubAdmin,PlatformAdmin,Trainer")]
+        [Authorize(Policy = "ClubTrainer")]
         public async Task<IActionResult> GetStudentsEligibleForGrading(CancellationToken cancellationToken)
         {
             var result = await _studentService.GetStudentsEligibleForGradingAsync(cancellationToken);

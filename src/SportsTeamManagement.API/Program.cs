@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
@@ -10,6 +11,9 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using SportsTeamManagement.API.HealthChecks;
 using SportsTeamManagement.Application;
 using SportsTeamManagement.Infrastructure;
+using SportsTeamManagement.API.Authorization;
+using Microsoft.AspNetCore.Authorization;
+using SportsTeamManagement.Domain.Enums;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,8 +25,11 @@ if (string.IsNullOrWhiteSpace(connectionString))
 }
 
 var authority = builder.Configuration["Authentication:Authority"];
-if (!Uri.TryCreate(authority, UriKind.Absolute, out var authorityUri) ||
-    authorityUri.Scheme != Uri.UriSchemeHttps)
+var signingKey = builder.Configuration["Authentication:SigningKey"];
+Uri? authorityUri = null;
+var useLocalJwt = !string.IsNullOrWhiteSpace(signingKey);
+if (!useLocalJwt && (!Uri.TryCreate(authority, UriKind.Absolute, out authorityUri) ||
+    authorityUri.Scheme != Uri.UriSchemeHttps))
 {
     throw new InvalidOperationException("Authentication:Authority must be an HTTPS issuer URL.");
 }
@@ -104,23 +111,64 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.Authority = authorityUri.ToString();
-        options.Audience = audience;
-        options.RequireHttpsMetadata = true;
-        options.MapInboundClaims = false;
-        options.TokenValidationParameters = new TokenValidationParameters
+        if (useLocalJwt)
         {
-            RoleClaimType = roleClaimType,
-            NameClaimType = "name"
-        };
+            options.Authority = null;
+            options.RequireHttpsMetadata = false;
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuer = builder.Configuration["Authentication:LocalIssuer"] ?? "SportsTeamManagement",
+                ValidateAudience = true,
+                ValidAudience = audience,
+                ValidateLifetime = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey!)),
+                RoleClaimType = roleClaimType,
+                NameClaimType = "name"
+            };
+        }
+        else
+        {
+            options.Authority = authorityUri!.ToString();
+            options.Audience = audience;
+            options.RequireHttpsMetadata = true;
+            options.MapInboundClaims = false;
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                RoleClaimType = roleClaimType,
+                NameClaimType = "name"
+            };
+        }
     });
 
 builder.Services.AddAuthorization(options =>
 {
+    options.AddPolicy("PlatformAdminOnly", policy => policy.RequireRole("PlatformAdmin"));
+    options.AddPolicy("ClubManager", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.Requirements.Add(new ClubRoleRequirement(UserRole.ClubAdmin, UserRole.Trainer, UserRole.Admin));
+    });
+    options.AddPolicy("ClubTrainer", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.Requirements.Add(new ClubRoleRequirement(UserRole.Trainer, UserRole.ClubAdmin, UserRole.Admin));
+    });
+    options.AddPolicy("ClubStudent", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.Requirements.Add(new ClubRoleRequirement(UserRole.Student));
+    });
+    options.AddPolicy("ClubParent", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.Requirements.Add(new ClubRoleRequirement(UserRole.Parent));
+    });
     options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
 });
+builder.Services.AddScoped<IAuthorizationHandler, ClubRoleHandler>();
 
 builder.Services.AddRateLimiter(options =>
 {

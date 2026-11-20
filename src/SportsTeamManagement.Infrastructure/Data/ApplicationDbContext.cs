@@ -28,6 +28,12 @@ namespace SportsTeamManagement.Infrastructure.Data
         public DbSet<MembershipPlan> MembershipPlans { get; set; }
         public DbSet<Membership> Memberships { get; set; }
         public DbSet<PaymentRecord> PaymentRecords { get; set; }
+        public DbSet<ExternalLogin> ExternalLogins { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<EnrollmentRequest> EnrollmentRequests { get; set; }
+        public DbSet<ParentStudentRelationship> ParentStudentRelationships { get; set; }
+        public DbSet<RoleAssignmentHistory> RoleAssignmentHistories { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

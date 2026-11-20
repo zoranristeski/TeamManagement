@@ -41,10 +41,58 @@ public sealed class ApiClient
         await SetTokenAsync();
     }
 
+    public async Task<AuthResponse> LoginAsync(string email, string password, CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.PostAsJsonAsync("/api/auth/login", new { email, password }, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var auth = await response.Content.ReadFromJsonAsync<AuthResponse>(cancellationToken: cancellationToken)
+            ?? throw new InvalidOperationException("The authentication response was invalid.");
+        await SaveAuthAsync(auth);
+        return auth;
+    }
+
+    public async Task<AuthResponse> RegisterAsync(string firstName, string lastName, string email, string password, CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.PostAsJsonAsync("/api/auth/register",
+            new { firstName, lastName, email, password, acceptTerms = true }, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var auth = await response.Content.ReadFromJsonAsync<AuthResponse>(cancellationToken: cancellationToken)
+            ?? throw new InvalidOperationException("The authentication response was invalid.");
+        await SaveAuthAsync(auth);
+        return auth;
+    }
+
+    public async Task RefreshAsync(CancellationToken cancellationToken = default)
+    {
+        var refreshToken = await SecureStorage.Default.GetAsync("sports_refresh_token");
+        if (string.IsNullOrWhiteSpace(refreshToken))
+            return;
+        using var response = await _httpClient.PostAsJsonAsync("/api/auth/refresh", new { refreshToken }, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            return;
+        var auth = await response.Content.ReadFromJsonAsync<AuthResponse>(cancellationToken: cancellationToken);
+        if (auth is not null)
+            await SaveAuthAsync(auth);
+    }
+
+    private async Task SaveAuthAsync(AuthResponse auth)
+    {
+        await SaveTokenAsync(auth.AccessToken);
+        await SecureStorage.Default.SetAsync("sports_refresh_token", auth.RefreshToken);
+    }
+
     public async Task SignOutAsync()
     {
         SecureStorage.Default.Remove("sports_access_token");
+        SecureStorage.Default.Remove("sports_refresh_token");
         SecureStorage.Default.Remove("sports_active_club");
         _httpClient.DefaultRequestHeaders.Authorization = null;
     }
+}
+
+public sealed class AuthResponse
+{
+    public string AccessToken { get; set; } = string.Empty;
+    public string RefreshToken { get; set; } = string.Empty;
+    public DateTime ExpiresAtUtc { get; set; }
 }

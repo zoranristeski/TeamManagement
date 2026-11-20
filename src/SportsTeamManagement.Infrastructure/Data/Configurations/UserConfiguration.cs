@@ -18,6 +18,13 @@ namespace SportsTeamManagement.Infrastructure.Data.Configurations
                 .IsRequired()
                 .HasMaxLength(255);
 
+            builder.Property(u => u.NormalizedEmail)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            builder.Property(u => u.PasswordHash)
+                .HasMaxLength(500);
+
             builder.Property(u => u.FirstName)
                 .IsRequired()
                 .HasMaxLength(100);
@@ -40,6 +47,9 @@ namespace SportsTeamManagement.Infrastructure.Data.Configurations
                 .IsUnique();
 
             builder.HasIndex(u => u.Email)
+                .IsUnique();
+
+            builder.HasIndex(u => u.NormalizedEmail)
                 .IsUnique();
 
             // One-to-one relationship with Student

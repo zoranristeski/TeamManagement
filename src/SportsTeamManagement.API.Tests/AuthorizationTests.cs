@@ -1,5 +1,6 @@
 using System.Data.Common;
 using System.Security.Claims;
+using System.Net.Http.Json;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
@@ -69,6 +70,56 @@ public sealed class AuthorizationTests : IClassFixture<TestWebApplicationFactory
         var response = await _client.SendAsync(request);
 
         Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RegistrationRejectsWeakPassword()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/register")
+        {
+            Content = JsonContent.Create(new
+            {
+                firstName = "Test",
+                lastName = "User",
+                email = "test@example.com",
+                password = "weak",
+                acceptTerms = true
+            })
+        };
+
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ExternalLoginRejectsUnconfiguredProvider()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/external/google")
+        {
+            Content = JsonContent.Create(new
+            {
+                code = "test-code",
+                redirectUri = "https://frontend.example/auth/callback/google"
+            })
+        };
+
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task LogoutWithoutRefreshTokenSucceeds()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/logout")
+        {
+            Content = JsonContent.Create(new { refreshToken = "" })
+        };
+
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]
