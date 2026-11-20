@@ -7,9 +7,15 @@ namespace SportsTeamManagement.Domain.Entities
     {
         public string Auth0Id { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
+        public string NormalizedEmail { get; set; } = string.Empty;
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string? PhoneNumber { get; set; }
+        public string? PasswordHash { get; set; }
+        public bool EmailVerified { get; set; }
+        public DateTime? LastLoginAt { get; set; }
+        public int AccessFailedCount { get; set; }
+        public DateTime? LockoutEndAt { get; set; }
         public UserRole Role { get; set; }
         public bool IsActive { get; set; } = true;
         public string? ProfileImageUrl { get; set; }
