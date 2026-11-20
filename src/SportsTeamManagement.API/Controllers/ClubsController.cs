@@ -5,7 +5,7 @@ using SportsTeamManagement.Application.Services.Interfaces;
 
 namespace SportsTeamManagement.API.Controllers;
 
-[Authorize(Roles = "PlatformAdmin")]
+[Authorize(Policy = "PlatformAdminOnly")]
 public sealed class ClubsController(IClubService clubService) : BaseApiController
 {
     [HttpGet]

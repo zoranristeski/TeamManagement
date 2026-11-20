@@ -5,7 +5,7 @@ using SportsTeamManagement.Application.Services.Interfaces;
 
 namespace SportsTeamManagement.API.Controllers;
 
-[Authorize(Roles = "PlatformAdmin,ClubAdmin,Admin,Trainer")]
+[Authorize(Policy = "ClubManager")]
 public sealed class TrainingGroupsController(ITrainingGroupService groupService) : BaseApiController
 {
     [HttpGet]

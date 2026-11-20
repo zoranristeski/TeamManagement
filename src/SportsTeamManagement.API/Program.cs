@@ -11,6 +11,9 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using SportsTeamManagement.API.HealthChecks;
 using SportsTeamManagement.Application;
 using SportsTeamManagement.Infrastructure;
+using SportsTeamManagement.API.Authorization;
+using Microsoft.AspNetCore.Authorization;
+using SportsTeamManagement.Domain.Enums;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -140,10 +143,32 @@ builder.Services
 
 builder.Services.AddAuthorization(options =>
 {
+    options.AddPolicy("PlatformAdminOnly", policy => policy.RequireRole("PlatformAdmin"));
+    options.AddPolicy("ClubManager", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.Requirements.Add(new ClubRoleRequirement(UserRole.ClubAdmin, UserRole.Trainer, UserRole.Admin));
+    });
+    options.AddPolicy("ClubTrainer", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.Requirements.Add(new ClubRoleRequirement(UserRole.Trainer, UserRole.ClubAdmin, UserRole.Admin));
+    });
+    options.AddPolicy("ClubStudent", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.Requirements.Add(new ClubRoleRequirement(UserRole.Student));
+    });
+    options.AddPolicy("ClubParent", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.Requirements.Add(new ClubRoleRequirement(UserRole.Parent));
+    });
     options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
 });
+builder.Services.AddScoped<IAuthorizationHandler, ClubRoleHandler>();
 
 builder.Services.AddRateLimiter(options =>
 {
