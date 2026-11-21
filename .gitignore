@@ -4,3 +4,5 @@
 *.user
 *.suo
 TestResults/
+**/.env.local
+**/.env.*.local

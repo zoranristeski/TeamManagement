@@ -45,16 +45,18 @@ export function LoginPage() {
       ? { clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID, auth: 'https://accounts.google.com/o/oauth2/v2/auth' }
       : { clientId: import.meta.env.VITE_FACEBOOK_APP_ID, auth: 'https://www.facebook.com/v20.0/dialog/oauth' }
     if (!config.clientId) {
-      setError(`${provider} OAuth is not configured.`)
+      setError(`${provider === 'google' ? 'Google' : 'Facebook'} sign-in needs OAuth setup. Add the provider client ID to the web environment and its client secret to the API environment; see the authentication setup guide.`)
       return
     }
     const redirectUri = `${window.location.origin}/auth/callback/${provider}`
+    const state = crypto.randomUUID()
+    sessionStorage.setItem('sports_oauth_state', state)
     const params = new URLSearchParams({
       client_id: config.clientId,
       redirect_uri: redirectUri,
       response_type: 'code',
       scope: provider === 'google' ? 'openid email profile' : 'email public_profile',
-      state: crypto.randomUUID(),
+      state,
     })
     window.location.assign(`${config.auth}?${params}`)
   }
@@ -81,11 +83,14 @@ export function LoginPage() {
         )}
         {error && <span className="field-error">{error}</span>}
         <button className="primary-button" type="submit">{mode === 'login' ? 'Sign in' : 'Register'}</button>
-        <button type="button" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>
+        <button className="login-secondary-button" type="button" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>
           {mode === 'login' ? 'Create account' : 'Already have an account?'}
         </button>
-        <button type="button" onClick={() => startProvider('google')}>Continue with Google</button>
-        <button type="button" onClick={() => startProvider('facebook')}>Continue with Facebook</button>
+        <div className="login-divider"><span>or continue with</span></div>
+        <div className="provider-buttons">
+          <button className="provider-button" type="button" onClick={() => startProvider('google')}>Google</button>
+          <button className="provider-button" type="button" onClick={() => startProvider('facebook')}>Facebook</button>
+        </div>
       </form>
     </div>
   )

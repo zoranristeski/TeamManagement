@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { AuthContext, type AuthContextValue } from './auth-context'
+import { apiRequest } from '../api/client'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState(() => localStorage.getItem('sports_access_token'))
@@ -11,13 +12,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     logout: () => {
       const refreshToken = localStorage.getItem('sports_refresh_token')
-      if (refreshToken) {
-        void fetch(`${(import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') || 'https://localhost:7001'}/api/auth/logout`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken }),
-        })
-      }
+      if (refreshToken) void apiRequest<void>('/api/auth/logout', {
+        method: 'POST',
+        body: JSON.stringify({ refreshToken }),
+      }).catch(error => console.error('Unable to revoke the current session.', error))
       localStorage.removeItem('sports_access_token')
       localStorage.removeItem('sports_refresh_token')
       localStorage.removeItem('sports_active_club')
