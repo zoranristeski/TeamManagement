@@ -45,6 +45,10 @@ manually without sample data, create/update the database yourself:
 dotnet ef database update --project .\src\SportsTeamManagement.Infrastructure\SportsTeamManagement.Infrastructure.csproj --startup-project .\src\SportsTeamManagement.API\SportsTeamManagement.API.csproj
 ```
 
+The EF design-time factory reads `ConnectionStrings:DefaultConnection` from the API
+project's user-secrets and allows `ConnectionStrings__DefaultConnection` in the
+environment to override it.
+
 Install web dependencies and configure the local API URL once:
 
 ```powershell
