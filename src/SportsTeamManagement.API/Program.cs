@@ -51,18 +51,20 @@ foreach (var origin in allowedOrigins)
 {
     if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri) ||
         (uri.Scheme != Uri.UriSchemeHttps &&
-         !(builder.Environment.IsDevelopment() && uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback)) ||
+         !((builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Testing")) &&
+           uri.Scheme == Uri.UriSchemeHttp &&
+           uri.IsLoopback)) ||
         uri.AbsolutePath != "/" ||
         !string.IsNullOrEmpty(uri.Query) ||
         !string.IsNullOrEmpty(uri.Fragment) ||
         !string.IsNullOrEmpty(uri.UserInfo))
     {
         throw new InvalidOperationException(
-            "Cors:AllowedOrigins must contain only explicit HTTPS origins (HTTP loopback is allowed in Development).");
+            "Cors:AllowedOrigins must contain only explicit HTTPS origins (HTTP loopback is allowed in Development and Testing).");
     }
 }
 
-if (builder.Configuration["PORT"] is { Length: > 0 } portValue)
+if (!builder.Environment.IsDevelopment() && builder.Configuration["PORT"] is { Length: > 0 } portValue)
 {
     if (!int.TryParse(portValue, out var port) || port is < 1 or > 65535)
     {
@@ -103,7 +105,7 @@ builder.Services.AddCors(options =>
         }
 
         policy.WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-            .WithHeaders("Authorization", "Content-Type");
+            .WithHeaders("Authorization", "Content-Type", "X-Club-Id");
     });
 });
 

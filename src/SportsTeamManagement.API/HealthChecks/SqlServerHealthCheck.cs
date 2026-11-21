@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using SportsTeamManagement.Infrastructure.Data;
 
@@ -13,9 +14,15 @@ public sealed class SqlServerHealthCheck(
     {
         try
         {
-            return await dbContext.Database.CanConnectAsync(cancellationToken)
-                ? HealthCheckResult.Healthy()
-                : HealthCheckResult.Unhealthy("Database is unavailable.");
+            if (!await dbContext.Database.CanConnectAsync(cancellationToken))
+            {
+                return HealthCheckResult.Unhealthy("Database is unavailable.");
+            }
+
+            var pendingMigrations = await dbContext.Database.GetPendingMigrationsAsync(cancellationToken);
+            return pendingMigrations.Any()
+                ? HealthCheckResult.Unhealthy("Database migrations are pending.")
+                : HealthCheckResult.Healthy();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

@@ -93,6 +93,19 @@ public sealed class AuthorizationTests : IClassFixture<TestWebApplicationFactory
     }
 
     [Fact]
+    public async Task LoginEndpointAllowsAnonymousRequests()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login")
+        {
+            Content = new StringContent("{", System.Text.Encoding.UTF8, "application/json")
+        };
+
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task ExternalLoginRejectsUnconfiguredProvider()
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/external/google")
@@ -126,12 +139,16 @@ public sealed class AuthorizationTests : IClassFixture<TestWebApplicationFactory
     public async Task CorsAllowsOnlyConfiguredOrigins()
     {
         using var allowedRequest = CreatePreflightRequest("https://frontend.example");
+        using var developmentRequest = CreatePreflightRequest("http://localhost:5173");
         using var blockedRequest = CreatePreflightRequest("https://untrusted.example");
 
         var allowedResponse = await _client.SendAsync(allowedRequest);
+        var developmentResponse = await _client.SendAsync(developmentRequest);
         var blockedResponse = await _client.SendAsync(blockedRequest);
 
         Assert.Contains("https://frontend.example", allowedResponse.Headers.GetValues("Access-Control-Allow-Origin"));
+        Assert.Contains("x-club-id", allowedResponse.Headers.GetValues("Access-Control-Allow-Headers").SelectMany(x => x.Split(',')).Select(x => x.Trim().ToLowerInvariant()));
+        Assert.Contains("http://localhost:5173", developmentResponse.Headers.GetValues("Access-Control-Allow-Origin"));
         Assert.False(blockedResponse.Headers.Contains("Access-Control-Allow-Origin"));
     }
 
@@ -140,6 +157,7 @@ public sealed class AuthorizationTests : IClassFixture<TestWebApplicationFactory
         var request = new HttpRequestMessage(HttpMethod.Options, "/api/students/eligible-for-grading");
         request.Headers.Add("Origin", origin);
         request.Headers.Add("Access-Control-Request-Method", "GET");
+        request.Headers.Add("Access-Control-Request-Headers", "authorization,content-type,x-club-id");
         return request;
     }
 }
@@ -160,6 +178,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<Program>
         SetEnvironmentVariable("Authentication__Authority", "https://issuer.example/");
         SetEnvironmentVariable("Authentication__Audience", "sports-team-management-tests");
         SetEnvironmentVariable("Cors__AllowedOrigins__0", "https://frontend.example");
+        SetEnvironmentVariable("Cors__AllowedOrigins__1", "http://localhost:5173");
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
