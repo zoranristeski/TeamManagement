@@ -15,8 +15,15 @@ export function AuthCallbackPage() {
 
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get('code')
+    const returnedState = new URLSearchParams(window.location.search).get('state')
+    const expectedState = sessionStorage.getItem('sports_oauth_state')
+    sessionStorage.removeItem('sports_oauth_state')
     if (!code || (provider !== 'google' && provider !== 'facebook')) {
       setError('The external login callback is invalid.')
+      return
+    }
+    if (!returnedState || !expectedState || returnedState !== expectedState) {
+      setError('The external sign-in could not be verified. Please try again.')
       return
     }
     const redirectUri = `${window.location.origin}/auth/callback/${provider}`
