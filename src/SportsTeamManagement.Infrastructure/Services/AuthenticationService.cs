@@ -336,10 +336,20 @@ public sealed class AuthenticationService : IAuthenticationService
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim("jti", Guid.NewGuid().ToString())
         };
-        if (user.Role == UserRole.PlatformAdmin)
+        var roleClaimType = _configuration["Authentication:RoleClaimType"] ?? "roles";
+        claims.Add(new Claim(roleClaimType, user.Role.ToString()));
+
+        var membershipRoles = await _db.ClubMemberships
+            .AsNoTracking()
+            .Where(x => x.UserId == user.Id && x.IsActive && x.Status == MembershipStatus.Active)
+            .Select(x => x.ClubRole)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        foreach (var membershipRole in membershipRoles)
         {
-            var roleClaimType = _configuration["Authentication:RoleClaimType"] ?? "roles";
-            claims.Add(new Claim(roleClaimType, nameof(UserRole.PlatformAdmin)));
+            var roleName = membershipRole.ToString();
+            if (!claims.Any(x => x.Type == roleClaimType && x.Value == roleName))
+                claims.Add(new Claim(roleClaimType, roleName));
         }
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
