@@ -14,6 +14,7 @@ using SportsTeamManagement.Infrastructure;
 using SportsTeamManagement.API.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using SportsTeamManagement.Domain.Enums;
+using SportsTeamManagement.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,6 +48,12 @@ if (string.IsNullOrWhiteSpace(roleClaimType))
 }
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+var seedDevelopmentData = builder.Configuration.GetValue<bool>("SeedData:Enabled");
+if (seedDevelopmentData && !builder.Environment.IsDevelopment())
+{
+    throw new InvalidOperationException("SeedData:Enabled can only be used in the Development environment.");
+}
+
 foreach (var origin in allowedOrigins)
 {
     if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri) ||
@@ -117,6 +124,7 @@ builder.Services
         {
             options.Authority = null;
             options.RequireHttpsMetadata = false;
+            options.MapInboundClaims = false;
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,
@@ -204,6 +212,15 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("UnhandledExceptions");
+
+if (seedDevelopmentData)
+{
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var seedLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+        .CreateLogger("DevelopmentDataSeeder");
+    await DevelopmentDataSeeder.SeedAsync(dbContext, seedLogger);
+}
 
 app.UseForwardedHeaders();
 app.UseExceptionHandler(errorApp =>

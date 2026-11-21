@@ -119,6 +119,7 @@ try {
     $apiStatus = Get-HttpStatusCode 'https://localhost:7251/health/live'
     if ($apiStatus -eq 200) {
         Write-Host 'Using the API already responding at https://localhost:7251.'
+        Write-Warning 'The running API was not started by this script, so its development seeder will not run. Restart that API with this script if sample data is missing.'
     }
     else {
         if (Test-TcpPort 7251) {
@@ -126,6 +127,7 @@ try {
         }
 
         $originalSigningKey = [Environment]::GetEnvironmentVariable('Authentication__SigningKey')
+        $originalSeedSetting = [Environment]::GetEnvironmentVariable('SeedData__Enabled')
         try {
             if ([string]::IsNullOrWhiteSpace($originalSigningKey)) {
                 $randomBytes = New-Object byte[] 48
@@ -139,6 +141,7 @@ try {
                 }
                 Write-Host 'Using a temporary local JWT signing key for this run; sessions will expire when the API stops.'
             }
+            $env:SeedData__Enabled = 'true'
 
             $apiArguments = "run --project `"$apiProject`" --launch-profile https"
             $apiProcess = Start-Process -FilePath $dotnet.Source -ArgumentList $apiArguments `
@@ -147,6 +150,7 @@ try {
         }
         finally {
             [Environment]::SetEnvironmentVariable('Authentication__SigningKey', $originalSigningKey)
+            [Environment]::SetEnvironmentVariable('SeedData__Enabled', $originalSeedSetting)
         }
 
         $apiStatus = 0

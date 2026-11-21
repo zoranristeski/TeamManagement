@@ -1,6 +1,8 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { CalendarCheck, LayoutDashboard, Settings, Shield, Users, LogOut, Dumbbell } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../auth/useAuth'
+import { apiRequest } from '../api/client'
 
 const links = [
   { to: '/', label: 'Overview', icon: LayoutDashboard },
@@ -12,6 +14,10 @@ const links = [
 
 export function AppShell() {
   const { logout } = useAuth()
+  const clubs = useQuery({
+    queryKey: ['active-clubs'],
+    queryFn: () => apiRequest<Array<{ id: string; name: string }>>('/api/clubs'),
+  })
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -33,6 +39,9 @@ export function AppShell() {
               localStorage.setItem('sports_active_club', event.target.value)
             }} aria-label="Active club">
               <option value="">Select club</option>
+              {clubs.data?.map((club) => (
+                <option key={club.id} value={club.id}>{club.name}</option>
+              ))}
             </select>
             <button className="icon-button" onClick={logout} title="Sign out"><LogOut size={18} /></button>
           </div>

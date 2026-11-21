@@ -37,18 +37,33 @@ sessions across API restarts, set a private development key in user-secrets:
 dotnet user-secrets set "Authentication:SigningKey" "<private random key with at least 32 characters>" --project .\src\SportsTeamManagement.API\SportsTeamManagement.API.csproj
 ```
 
-The database must exist and have current migrations applied:
+When you start the API with `scripts\dev.ps1`, it applies pending migrations and
+creates idempotent sample data in a local SQL Server or LocalDB database. To run the API
+manually without sample data, create/update the database yourself:
 
 ```powershell
 dotnet ef database update --project .\src\SportsTeamManagement.Infrastructure\SportsTeamManagement.Infrastructure.csproj --startup-project .\src\SportsTeamManagement.API\SportsTeamManagement.API.csproj
 ```
 
-Install web dependencies once:
+The EF design-time factory reads `ConnectionStrings:DefaultConnection` from the API
+project's user-secrets and allows `ConnectionStrings__DefaultConnection` in the
+environment to override it.
+
+Install web dependencies and configure the local API URL once:
 
 ```powershell
 Set-Location .\src\SportsTeamManagement.Web
 npm ci
 Copy-Item .env.example .env.local
+```
+
+From the repository root, build the API and web app:
+
+```powershell
+dotnet build .\src\SportsTeamManagement.API\SportsTeamManagement.API.csproj
+Set-Location .\src\SportsTeamManagement.Web
+npm run build
+Set-Location ..\..
 ```
 
 The template uses `VITE_API_BASE_URL=https://localhost:7251`; Google and Facebook client
@@ -65,15 +80,30 @@ From the repository root:
 
 The script checks tool and project locations, frontend dependencies, API configuration,
 and the HTTPS certificate. If the certificate is not trusted, it offers to run the
-standard .NET trust command. It then starts the API with the `https` launch profile and
-the frontend with the existing npm `dev` script. If an endpoint is already responding
-on the expected port, the script reuses it and does not stop it on exit.
+standard .NET trust command. It then starts the API with the `https` launch profile,
+enables development sample seeding, and starts the frontend with the existing npm `dev`
+script. The seeder applies pending migrations, then inserts sample rows only when the
+demo admin is not already present. It refuses to seed non-local SQL Server instances.
+If an endpoint is already responding on the expected port, the script reuses it and
+does not stop it on exit; an already-running API will not run the seeder.
 
 The script reports API liveness, SQL connectivity, Swagger, and frontend availability
 separately. Database readiness must pass for registration to succeed. Press Enter to stop
 only the processes started by the script.
 
-You can also use two terminals:
+With the script running, sign in with the seeded demo administrator:
+
+- Email: `demo.admin@example.invalid`
+- Password: `DemoAdmin!123`
+
+The sample records cover all 24 application tables, including a club, users and
+memberships, a student and trainer, groups and sessions, attendance and grading,
+events and registrations, plans and payments, guardians, enrollment, identity
+relationships, external login, refresh token, role history, and audit log. The
+development-only demo password should not be reused outside a local development
+database.
+
+To run the applications manually in two terminals (without automatic demo seeding):
 
 ```powershell
 dotnet run --project .\src\SportsTeamManagement.API\SportsTeamManagement.API.csproj --launch-profile https
