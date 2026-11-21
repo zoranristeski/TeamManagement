@@ -52,7 +52,7 @@ public sealed class AuthenticationService : IAuthenticationService
             NormalizedEmail = normalizedEmail,
             FirstName = request.FirstName.Trim(),
             LastName = request.LastName.Trim(),
-            PasswordHash = HashPassword(request.Password),
+            PasswordHash = PasswordHashing.Hash(request.Password),
             EmailVerified = false,
             Role = UserRole.Student,
             IsActive = true
@@ -72,7 +72,7 @@ public sealed class AuthenticationService : IAuthenticationService
         if (user.LockoutEndAt.HasValue && user.LockoutEndAt.Value > DateTime.UtcNow)
             return Result.Failure<AuthResponseDto>("The account is temporarily locked.");
 
-        if (!VerifyPassword(request.Password, user.PasswordHash))
+        if (!PasswordHashing.Verify(request.Password, user.PasswordHash))
         {
             user.AccessFailedCount++;
             if (user.AccessFailedCount >= 5)
@@ -330,12 +330,17 @@ public sealed class AuthenticationService : IAuthenticationService
             return Result.Failure<AuthResponseDto>("Local authentication signing is not configured.");
 
         var expires = DateTime.UtcNow.AddMinutes(15);
-        var claims = new[]
+        var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim("jti", Guid.NewGuid().ToString())
         };
+        if (user.Role == UserRole.PlatformAdmin)
+        {
+            var roleClaimType = _configuration["Authentication:RoleClaimType"] ?? "roles";
+            claims.Add(new Claim(roleClaimType, nameof(UserRole.PlatformAdmin)));
+        }
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(issuer, audience, claims, expires: expires, signingCredentials: credentials);
@@ -379,32 +384,6 @@ public sealed class AuthenticationService : IAuthenticationService
             && password.Any(char.IsLower)
             && password.Any(char.IsDigit)
             && password.Any(c => !char.IsLetterOrDigit(c));
-    }
-
-    private static string HashPassword(string password)
-    {
-        const int iterations = 100_000;
-        var salt = RandomNumberGenerator.GetBytes(16);
-        var hash = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, HashAlgorithmName.SHA256, 32);
-        return $"PBKDF2${iterations}${Convert.ToHexString(salt)}${Convert.ToHexString(hash)}";
-    }
-
-    private static bool VerifyPassword(string password, string stored)
-    {
-        var parts = stored.Split('$');
-        if (parts.Length != 4 || !int.TryParse(parts[1], out var iterations))
-            return false;
-        try
-        {
-            var salt = Convert.FromHexString(parts[2]);
-            var expected = Convert.FromHexString(parts[3]);
-            var actual = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, HashAlgorithmName.SHA256, expected.Length);
-            return CryptographicOperations.FixedTimeEquals(actual, expected);
-        }
-        catch (FormatException)
-        {
-            return false;
-        }
     }
 
     private static string HashToken(string token)
